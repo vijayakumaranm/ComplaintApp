@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; }
+        .navbar { background: #4a90e2; padding: 15px 30px; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .navbar button { background: white; color: #333; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; }
+        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h3 { margin-bottom: 20px; color: #333; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { background: #333; color: white; padding: 10px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        tr:hover { background: #f9f9f9; cursor: pointer; }
+        .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .Open { background: #fff3cd; color: #856404; }
+        .In-Progress { background: #cce5ff; color: #004085; }
+        .Resolved { background: #d4edda; color: #155724; }
+        .Rejected { background: #f8d7da; color: #721c24; }
+        .empty { text-align: center; color: #999; padding: 20px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; padding: 25px; border-radius: 8px; width: 420px; }
+        .modal h4 { margin-bottom: 15px; color: #333; }
+        .modal label { display: block; margin-bottom: 5px; font-size: 14px; color: #555; }
+        .modal input, .modal select, .modal textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; background: #f9f9f9; }
+        .modal textarea { resize: vertical; height: 70px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .modal-actions button { padding: 8px 18px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .btn-save { background: #4a90e2; color: white; }
+        .btn-save:hover { background: #357abd; }
+        .btn-cancel { background: #ccc; color: #333; }
+        .btn-cancel:hover { background: #bbb; }
+        .msg { margin-top: 10px; font-size: 14px; text-align: right; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+<div class="navbar">
+    <span style="color:white; font-weight:bold;">Admin Dashboard</span>
+    <button onclick="logout()">Logout</button>
+</div>
+<div class="container">
+    <div class="card">
+        <h3>All Complaints</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Assigned To</th>
+                <th>Raised On</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody id="complaintsBody">
+            <tr><td colspan="8" class="empty">Loading...</td></tr>
+            </tbody>
+        </table>
+        <div class="msg" id="msg"></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h4>Update Complaint</h4>
+        <input type="hidden" id="editId" />
+        <label>Title</label>
+        <input type="text" id="editTitle" disabled />
+        <label>Description</label>
+        <textarea id="editDescription" disabled></textarea>
+        <label>Category</label>
+        <input type="text" id="editCategory" disabled />
+        <label>Raised By</label>
+        <input type="text" id="editUser" disabled />
+        <label>Status</label>
+        <select id="editStatus">
+            <option>Open</option>
+            <option>In Progress</option>
+            <option>Resolved</option>
+            <option>Rejected</option>
+        </select>
+        <label>Assign To Department</label>
+        <input type="text" id="editAssignedTo" placeholder="e.g. Water Department" />
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn-save" onclick="saveComplaint()">Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const role = localStorage.getItem('role');
+    if (!role || role !== 'ADMIN') window.location.href = 'login.html';
+
+    async function loadComplaints() {
+        const response = await fetch('/api/admin/complaints');
+        const data = await response.json();
+        const tbody = document.getElementById('complaintsBody');
+
+        if (!data.complaints || data.complaints.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty">No complaints found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.complaints.map(c => {
+            const statusName = c.status.statusName.replace(' ', '-');
+            const date = new Date(c.createdAt).toLocaleDateString();
+            return `<tr>
+                <td>${c.id}</td>
+                <td>${c.user.name}</td>
+                <td>${c.title}</td>
+                <td>${c.category}</td>
+                <td><span class="badge ${statusName}">${c.status.statusName}</span></td>
+                <td>${c.assignedTo || '-'}</td>
+                <td>${date}</td>
+                <td><button class="btn-save" onclick="openModal(${c.id}, '${c.title}', '${c.description}', '${c.category}', '${c.user.name}', '${c.status.statusName}', '${c.assignedTo || ''}')">Edit</button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    function openModal(id, title, description, category, userName, status, assignedTo) {
+        document.getElementById('editId').value = id;
+        document.getElementById('editTitle').value = title;
+        document.getElementById('editDescription').value = description;
+        document.getElementById('editCategory').value = category;
+        document.getElementById('editUser').value = userName;
+        document.getElementById('editStatus').value = status;
+        document.getElementById('editAssignedTo').value = assignedTo;
+        document.getElementById('modalOverlay').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('active');
+    }
+
+    async function saveComplaint() {
+        const id = document.getElementById('editId').value;
+        const status = document.getElementById('editStatus').value;
+        const assignedTo = document.getElementById('editAssignedTo').value.trim();
+        const msg = document.getElementById('msg');
+
+        const response = await fetch(`/api/admin/complaints/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status, assignedTo })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            msg.className = 'msg success';
+            msg.textContent = 'Complaint updated successfully';
+            closeModal();
+            loadComplaints();
+        } else {
+            msg.className = 'msg error';
+            msg.textContent = data.message;
+        }
+    }
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = 'login.html';
+    }
+
+    loadComplaints();
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .card { background: white; padding: 30px; border-radius: 8px; width: 360px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h2 { margin-bottom: 20px; text-align: center; color: #333; }
+        label { display: block; margin-bottom: 5px; font-size: 14px; color: #555; }
+        input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; }
+        button { width: 100%; padding: 10px; background: #4a90e2; color: white; border: none; border-radius: 5px; font-size: 15px; cursor: pointer; }
+        button:hover { background: #357abd; }
+        .msg { margin-top: 12px; text-align: center; font-size: 14px; }
+        .error { color: red; }
+        .success { color: green; }
+        .link { margin-top: 15px; text-align: center; font-size: 14px; }
+        .link a { color: #4a90e2; text-decoration: none; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>Register</h2>
+    <label>Name</label>
+    <input type="text" id="name" placeholder="Enter full name" />
+    <label>Email</label>
+    <input type="email" id="email" placeholder="Enter email" />
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Min 6 chars, alphanumeric" />
+    <label>Mobile</label>
+    <input type="text" id="mobile" placeholder="10-digit mobile number" />
+    <button onclick="register()">Register</button>
+    <div class="msg" id="msg"></div>
+    <div class="link"><a href="login.html">Already have an account? Login</a></div>
+</div>
+<script>
+    async function register() {
+        const name = document.getElementById('name').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const mobile = document.getElementById('mobile').value.trim();
+        const msg = document.getElementById('msg');
+
+        if (!name || !email || !password || !mobile) {
+            msg.className = 'msg error';
+            msg.textContent = 'All fields are required';
+            return;
+        }
+
+        if (!/^[a-zA-Z ]+$/.test(name)) {
+            msg.className = 'msg error';
+            msg.textContent = 'Name must contain alphabets only';
+            return;
+        }
+
+        if (!/^\d{10}$/.test(mobile)) {
+            msg.className = 'msg error';
+            msg.textContent = 'Mobile must be a 10-digit number';
+            return;
+        }
+
+        if (!/^(?=.*[a-zA-Z])(?=.*[0-9]).{6,}$/.test(password)) {
+            msg.className = 'msg error';
+            msg.textContent = 'Password must be at least 6 characters and alphanumeric';
+            return;
+        }
+
+        const response = await fetch('/api/users/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password, mobile })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            msg.className = 'msg success';
+            msg.textContent = 'Registered successfully! Redirecting to login...';
+            setTimeout(() => window.location.href = 'login.html', 1500);
+        } else {
+            msg.className = 'msg error';
+            msg.textContent = data.message;
+        }
+    }
+</script>
+</body>
+</html>
